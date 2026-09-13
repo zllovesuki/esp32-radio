@@ -1,0 +1,62 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -30,6 +30,10 @@
+ name = "str0m_rust_crypto"
+ path = "src/lib.rs"
+ 
++[features]
++default = ["generate-cert"]
++generate-cert = ["dimpl/rcgen"]
++
+ [dependencies.aes]
+ version = "0.8"
+ 
+@@ -43,7 +47,6 @@
+ version = "0.7.1"
+ features = [
+     "rust-crypto",
+-    "rcgen",
+ ]
+ default-features = false
+ 
+--- a/src/dtls.rs
++++ b/src/dtls.rs
+@@ -17,13 +17,20 @@
+ 
+ impl DtlsProvider for RustCryptoDtlsProvider {
+     fn generate_certificate(&self) -> Option<DtlsCert> {
+-        // Use dimpl's rcgen-based certificate generation (with RustCrypto backend)
+-        dimpl::certificate::generate_self_signed_certificate()
+-            .ok()
+-            .map(|cert| DtlsCert {
+-                certificate: cert.certificate,
+-                private_key: cert.private_key,
+-            })
++        #[cfg(feature = "generate-cert")]
++        {
++            dimpl::certificate::generate_self_signed_certificate()
++                .ok()
++                .map(|cert| DtlsCert {
++                    certificate: cert.certificate,
++                    private_key: cert.private_key,
++                })
++        }
++        #[cfg(not(feature = "generate-cert"))]
++        {
++            // The application supplies its certificate through RtcConfig.
++            None
++        }
+     }
+ 
+     fn new_dtls(
+@@ -40,7 +47,9 @@
+ 
+         // Create a default dimpl Config with RustCrypto crypto provider
+         // ICE verifies return routability before DTLS, making server cookies redundant.
+-        let mut builder = dimpl::Config::builder().use_server_cookie(false);
++        let mut builder = dimpl::Config::builder()
++            .with_crypto_provider(dimpl::crypto::rust_crypto::default_provider())
++            .use_server_cookie(false);
+         if let Some(mtu) = mtu {
+             builder = builder.mtu(mtu);
+         }

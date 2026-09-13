@@ -1,0 +1,35 @@
+name: Checks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  host:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: worker/package-lock.json
+      - name: Install the host Rust toolchain
+        run: rustup toolchain install 1.88.0 --profile minimal --component rustfmt,clippy
+      - name: Install the pinned C formatter
+        run: make setup-c-format
+      - name: Install web dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --prefix worker
+      - name: Check source formatting and portable code
+        run: make check CARGO='cargo +1.88.0'
+      - name: Check transport receive limits and packet serialization
+        run: make check-transport-patches CARGO='cargo +1.88.0'
+      - name: Check the Worker and Durable Object lifecycle
+        run: make test-worker
+      - name: Check the production bundle and scheduled alarm
+        run: make test-worker-bundle

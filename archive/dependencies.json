@@ -1,0 +1,7 @@
+{
+  "esp-idf": "2c211b236707889e8400c4dc5644dd5c4ee071e0",
+  "esp-webrtc-solution": "c8650846b512e6e1375e5f78c1c41619b8d645eb",
+  "esp-dsp": "3c8ac0fdfec83740b783e200862c8d0c056de0ad",
+  "esp-adf-libs": "da256e5f462a8e010667d35314a5ba5cdc4a8d9a",
+  "rust-release": "1.97.0.0"
+}

@@ -1,0 +1,20 @@
+[package]
+name = "esp32-radio"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+description = "ESP-IDF application for the ESP32-S3 Cloudflare SFU radio"
+
+[lib]
+crate-type = ["staticlib"]
+test = false
+doctest = false
+
+[dependencies]
+radio-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

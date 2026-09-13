@@ -1,0 +1,6 @@
+# Historical host environment: Python 3.11.
+aiortc==1.15.0
+av==17.1.0
+esptool==5.4.0
+numpy==1.24.2
+pyserial==3.5

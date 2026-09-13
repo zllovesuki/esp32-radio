@@ -13,6 +13,13 @@ A Worker and Durable Object coordinate sessions and control permission; media
 flows through the SFU. The board's Wi-Fi network can be isolated from the
 browser's LAN.
 
+[![Watch the exhibit walkthrough][exhibit-preview]][exhibit-video]
+
+[Watch the exhibit][exhibit-video]
+
+[exhibit-preview]: https://customer-xh5ox2wjydphmvww.cloudflarestream.com/7bb52a1c2ade56003dae73811c5e8aa2/thumbnails/thumbnail.gif?time=12s&duration=4s&fps=8&width=600&height=338&fit=clip
+[exhibit-video]: https://customer-xh5ox2wjydphmvww.cloudflarestream.com/7bb52a1c2ade56003dae73811c5e8aa2/watch
+
 ## Set up
 
 The supported board is **ESP32-S3-DevKitC-1 N32R16V**: 32 MiB octal flash,

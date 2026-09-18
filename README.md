@@ -107,7 +107,9 @@ make flash-music
 
 For a custom order or metadata overrides, copy [playlist.example.json](playlist.example.json)
 to ignored `playlist.json`, edit its entries, and run `make music PLAYLIST=playlist.json`.
-Preparation uses 48 kHz stereo Opus with a 96 kb/s variable-bitrate target.
+Preparation uses 48 kHz stereo Opus with a default 96 kb/s variable-bitrate target.
+Set `"bitrateKbps": 88` in a playlist entry to choose a different target for that
+song. The prepared `music.json` records each song's target bitrate.
 The catalog supports up to 32 songs of at most 10 minutes each, with a total
 duration of at most 60 minutes, and must fit the 16 MiB music partition.
 See the [music format](firmware/docs/music.md) for packet

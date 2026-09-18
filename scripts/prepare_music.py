@@ -20,6 +20,13 @@ MAX_TAG_BYTES = 256
 MAX_TRACKS = 32
 MAX_TOTAL_FRAMES = 180_000
 AUDIO_SUFFIXES = {".flac", ".wav", ".mp3", ".m4a", ".ogg", ".opus"}
+DEFAULT_BITRATE_KBPS = 96
+
+
+def music_bitrate(value):
+    if type(value) is not int or not 1 <= value <= 512:
+        raise ValueError("bitrateKbps must be an integer from 1 to 512")
+    return value
 
 
 def music_tag(value, name, required=False):
@@ -91,8 +98,8 @@ def inputs(args):
         result = []
         for entry in entries:
             if isinstance(entry, str): entry = {"file": entry}
-            if not isinstance(entry, dict) or set(entry) - {"file", "title", "artist"} or not isinstance(entry.get("file"), str):
-                raise ValueError("Each playlist entry needs a file and optional title/artist")
+            if not isinstance(entry, dict) or set(entry) - {"file", "title", "artist", "bitrateKbps"} or not isinstance(entry.get("file"), str):
+                raise ValueError("Each playlist entry needs a file and optional title/artist/bitrateKbps")
             if any(key in entry and not isinstance(entry[key], str) for key in ["title", "artist"]):
                 raise ValueError("Title and artist overrides must be strings")
             result.append({**entry, "file": path.parent / entry["file"]})
@@ -105,6 +112,8 @@ def inputs(args):
             else: result.append({"file": path})
     if not 1 <= len(result) <= MAX_TRACKS:
         raise ValueError(f"Provide 1..{MAX_TRACKS} songs, a folder, or --playlist")
+    for entry in result:
+        entry["bitrateKbps"] = music_bitrate(entry.get("bitrateKbps", DEFAULT_BITRATE_KBPS))
     if args.title is not None or args.artist is not None:
         if len(result) != 1: raise ValueError("Use playlist entries for per-song metadata overrides")
         if args.title is not None: result[0]["title"] = args.title
@@ -114,6 +123,7 @@ def inputs(args):
 
 def encode_song(entry):
     file = entry["file"]
+    bitrate = music_bitrate(entry.get("bitrateKbps", DEFAULT_BITRATE_KBPS))
     metadata = json.loads(subprocess.check_output([
         "ffprobe", "-v", "error", "-show_format", "-of", "json", str(file)]))["format"]
     tags = {key.lower(): value for key, value in metadata.get("tags", {}).items()}
@@ -121,7 +131,7 @@ def encode_song(entry):
     artist = music_tag(entry.get("artist", tags.get("artist", "")), "Artist")
     encoded = subprocess.check_output([
         "ffmpeg", "-v", "error", "-i", str(file), "-map", "0:a:0", "-vn",
-        "-ar", "48000", "-ac", "2", "-c:a", "libopus", "-b:a", "96k",
+        "-ar", "48000", "-ac", "2", "-c:a", "libopus", "-b:a", f"{bitrate}k",
         "-vbr", "on", "-frame_duration", "20", "-application", "audio", "-f", "opus", "pipe:1"])
     packets = list(ogg_packets(encoded))
     if len(packets) < 3 or not packets[0].startswith(b"OpusHead") or not packets[1].startswith(b"OpusTags"):
@@ -130,13 +140,13 @@ def encode_song(entry):
     packed = pack_song(packets, title, artist)
     return packed, {"title": title, "artist": artist, "durationMs": len(packets) * 20,
                     "sourceDurationMs": round(float(metadata["duration"]) * 1000),
-                    "frames": len(packets), "bytes": len(packed)}
+                    "frames": len(packets), "bytes": len(packed), "bitrateKbps": bitrate}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("files", type=Path, nargs="*", help="Audio files or folders in playlist order")
-    parser.add_argument("--playlist", type=Path, help="Ordered JSON list of files and optional metadata overrides")
+    parser.add_argument("--playlist", type=Path, help="Ordered JSON list of files and optional metadata/bitrate overrides")
     parser.add_argument("--title", help="Override the title for a single input")
     parser.add_argument("--artist", help="Override the artist for a single input")
     args = parser.parse_args()

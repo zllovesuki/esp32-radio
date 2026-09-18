@@ -1,4 +1,4 @@
 [
   { "file": "tracks/first-song.flac" },
-  { "file": "tracks/second-song.flac", "title": "Optional title override" }
+  { "file": "tracks/second-song.flac", "title": "Optional title override", "bitrateKbps": 88 }
 ]

@@ -93,17 +93,26 @@ path against the SDK, and device checks validate its behavior.
 
 ## Worker session cleanup and leases
 
-Treat SFU cleanup responses 404/410 as already closed, so an expired publisher
-cannot prevent the next boot. Keep the earliest pending Durable Object alarm:
+Publisher replacement and expiry use the application's
+[disposable-session policy](worker/README.md#session-and-media-flow). An SFU close
+failure on an obsolete generation must not block a replacement boot.
+
+For cleanup within the current generation, treat responses 404/410 and an HTTP
+200 `close_track_error` as already closed. The latter can appear at the top level
+or on a track or DataChannel item. Keep other failures pending; an `internal_error`
+does not establish absence. See the
+[SFU error-code clarification](https://github.com/cloudflare/cloudflare-docs/pull/33455).
+Keep the earliest pending Durable Object alarm:
 ordinary status polling must not postpone controller-lease expiration. The
 isolated signaling tests cover both behaviors.
 
 SFU allocation responses can contain successful IDs beside failed items. Save
 those IDs before checking the complete response. Optional `pendingChannels` and
 `pendingMids` fields hold cleanup receipts, separate from usable media. They
-survive eviction and remain until cleanup succeeds. Before rolling back to a
-Worker version without receipt handling, close listeners and replace the board
-session under the current version, confirming cleanup succeeds first.
+survive eviction within the current generation and remain until cleanup succeeds
+or that generation is discarded. Before rolling back to a Worker version without
+receipt handling, close listeners and replace the board session under the current
+version.
 
 ## Music pack compatibility
 

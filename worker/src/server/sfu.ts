@@ -61,6 +61,13 @@ export class SfuClient {
   ): Promise<SfuResult> {
     return this.request(path, input, 'POST', false, retain);
   }
+  async closeTracks(sessionId: string, mids: string[]): Promise<void> {
+    await this.call(
+      `/sessions/${sessionId}/tracks/close`,
+      { tracks: mids.map((mid) => ({ mid })), force: true },
+      'PUT',
+    );
+  }
   private async request(
     path: string,
     input: unknown,
@@ -105,11 +112,12 @@ export class SfuClient {
     const parsed = resultSchema.safeParse(payload);
     demand(parsed.success, 502, 'The SFU returned an invalid response.');
     const value = parsed.data;
+    // Explicit absence satisfies cleanup whether reported for the request or an item.
     const failed = (item: { errorCode?: string }) =>
       item.errorCode && !(closing && item.errorCode === 'close_track_error');
     if (
       !response.ok ||
-      value.errorCode ||
+      failed(value) ||
       value.tracks?.some(failed) ||
       value.dataChannels?.some(failed)
     ) {
@@ -118,10 +126,17 @@ export class SfuClient {
           phase: 'sfu',
           operation: path.split('/').slice(-2).join('/'),
           status: response.status,
+          errorCode: value.errorCode,
+          trackErrorCodes: value.tracks?.flatMap((item) =>
+            item.errorCode ? [item.errorCode] : [],
+          ),
+          dataChannelErrorCodes: value.dataChannels?.flatMap((item) =>
+            item.errorCode ? [item.errorCode] : [],
+          ),
         }),
       );
     }
-    demand(response.ok && !value.errorCode, 502, `SFU operation failed (${response.status}).`);
+    demand(response.ok && !failed(value), 502, `SFU operation failed (${response.status}).`);
     demand(
       !value.dataChannels?.some(failed) && !value.tracks?.some(failed),
       502,

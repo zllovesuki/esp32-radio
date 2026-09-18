@@ -127,12 +127,19 @@ revocation is retained for retry, and status polling preserves the earliest
 scheduled cleanup alarm. Volume and mute stay in each browser; LED and playback
 commands go to the board and affect all listeners.
 
-When an SFU allocation response contains channel IDs or track mids alongside an
-error, `RobotRoom` retains those IDs as cleanup receipts. It retries that cleanup
-before replacing the affected channels, tracks or publisher. It also assigns a
-generation identifier to each board publisher session. After startup, device
-requests must name that generation, and viewer operations must belong to it, so
-stale sessions cannot change the active session's state.
+Each board publisher has a generation identifier. A new boot discards the prior
+publisher, viewer membership, and controller state before allocating its session.
+It makes no SFU cleanup calls for the discarded generation; those transports rely
+on SFU expiry. The same policy applies after 90 seconds without a board heartbeat.
+This is the application's disposable-session policy. Browsers close their old
+PeerConnection when status changes or their membership is rejected. Requests
+from an old generation cannot change the replacement session. Retries of the
+current boot reuse its completed startup response.
+
+Within the current generation, an SFU allocation response can contain channel
+IDs or track mids alongside an error. `RobotRoom` retains those IDs as cleanup
+receipts and retries cleanup before replacing the affected channels or tracks.
+Failed viewer cleanup also remains pending while that generation is current.
 
 The board includes current-song metadata in its HTTPS heartbeats. The status API
 returns the last accepted metadata before a browser establishes WebRTC;

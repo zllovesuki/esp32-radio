@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest';
 import { runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
-import { createHarness } from './harness.ts';
+import { createHarness, device } from './harness.ts';
 
 test('failed revocation retains the controller until a successful retry', async () => {
   let failRevoke = false;
@@ -51,4 +51,36 @@ test('status polling keeps the earliest alarm and an expired lease revokes SFU p
         call.path.endsWith('/datachannels/update') && call.input.dataChannels[0].canReply === false,
     ),
   ).toBe(true);
+});
+
+test('publisher expiry discards its whole generation and stops cleanup alarms', async () => {
+  let expired = false;
+  const h = createHarness(() =>
+    expired ? Response.json({ errorCode: 'internal_error' }, { status: 503 }) : undefined,
+  );
+  await h.login();
+  const previous = await h.start();
+  const viewer = await h.viewer();
+  expect((await h.call(`/viewers/${viewer.id}/claim`, {}, viewer.owner)).status).toBe(200);
+  const before = h.calls.length;
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(Date.now() + 91000);
+  expired = true;
+  expect(await runDurableObjectAlarm(h.room)).toBe(true);
+  expect(h.calls).toHaveLength(before);
+  await h.evict();
+  expect(await h.status()).toMatchObject({
+    online: false,
+    generation: null,
+    viewers: 0,
+    controller: null,
+  });
+  expect(await runInDurableObject(h.room, (_instance, state) => state.storage.getAlarm())).toBe(
+    null,
+  );
+  expect((await h.call('/device/heartbeat', previous.identity, device)).status).toBe(409);
+  expect((await h.call(`/viewers/${viewer.id}/heartbeat`, {}, viewer.owner)).status).toBe(403);
+  expired = false;
+  await h.start({ bootId: 'b'.repeat(32) });
+  expect((await h.status()).online).toBe(true);
 });
